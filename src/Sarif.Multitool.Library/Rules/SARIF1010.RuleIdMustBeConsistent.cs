@@ -25,7 +25,13 @@ namespace Microsoft.CodeAnalysis.Sarif.Multitool.Rules
             nameof(RuleResources.SARIF1010_RuleIdMustBeConsistent_Error_ResultMustSpecifyRuleId_Text)
         };
         public override FailureLevel DefaultLevel => FailureLevel.Error;
-        
+
+        private List<string> ruleIds;
+        protected override void Analyze(Run run, string resultPointer)
+        {
+            this.ruleIds = GetRuleIds(run);
+        }
+
         protected override void Analyze(Result result, string resultPointer)
         {
             AnalyzeRuleId(result, resultPointer);
@@ -40,7 +46,7 @@ namespace Microsoft.CodeAnalysis.Sarif.Multitool.Rules
                 // ([§3.27.5](https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/sarif-v2.1.0-os.html#_Toc34317643))
                 // requires at least one of these properties to be present.
                 LogResult(
-                    pointer, 
+                    pointer,
                     nameof(RuleResources.SARIF1010_RuleIdMustBeConsistent_Error_ResultMustSpecifyRuleId_Text));
             }
             // if both are present, they must be equal.
@@ -53,11 +59,33 @@ namespace Microsoft.CodeAnalysis.Sarif.Multitool.Rules
                 // (https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/sarif-v2.1.0-os.html#_Toc34317643))
                 // requires that if both of these properties are present, they must be equal.
                 LogResult(
-                    pointer, 
-                    nameof(RuleResources.SARIF1010_RuleIdMustBeConsistent_Error_ResultRuleIdMustBeConsistent_Text), 
-                    result.RuleId, 
+                    pointer,
+                    nameof(RuleResources.SARIF1010_RuleIdMustBeConsistent_Error_ResultRuleIdMustBeConsistent_Text),
+                    result.RuleId,
                     result.Rule?.Id);
             }
+
+            // rules in file must contain the rule id
+           else if ((!string.IsNullOrWhiteSpace(result.RuleId) && !ruleIds.Contains(result.RuleId)) || (!string.IsNullOrWhiteSpace(result.Rule?.Id) && !ruleIds.Contains(result.Rule?.Id))) {
+                // TODO: update message text 
+                LogResult(
+                    pointer,
+                    nameof(RuleResources.SARIF1010_RuleIdMustBeConsistent_Error_ResultMustSpecifyRuleId_Text));
+            }
+        }
+
+        private List<string> GetRuleIds(Run run)
+        {
+            var ruleIds = new List<string>();
+
+            if (run.Tool?.Driver?.Rules != null)
+            {
+                foreach (ReportingDescriptor rule in run.Tool.Driver.Rules)
+                {
+                    ruleIds.Add(rule.Id);
+                }
+            }
+            return ruleIds;
         }
     }
 }
